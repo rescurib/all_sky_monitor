@@ -1,0 +1,12 @@
+# Code requirements for cam_recorder
+
+* Apply SOLID principles
+* Commands shall be easy to add and maintain (use command pattern)
+* Add --help for all commands, list all available commands and options
+* Use Make for building the project
+* Follow Google C++ Style Guide
+* Doxygen for documentation
+* Comments in Spanish
+* C++ 17 
+* Ensure portability between Windows (MSYS2,UCRT) and Linux
+* Update README file with build and usage instructions
