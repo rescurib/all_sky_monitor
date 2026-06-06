@@ -39,6 +39,16 @@
 *.out
 *.app
 
+# Media files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.flv
+*.webm
+*.wmv
+
+
 # Build directories
 build/
 Build/
