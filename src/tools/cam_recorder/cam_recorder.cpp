@@ -18,6 +18,11 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <csignal>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <cerrno>
 #endif
 
 #include <opencv2/opencv.hpp>
@@ -25,6 +30,35 @@
 #include "indicators.hpp"
 
 namespace cam_recorder {
+
+#ifndef _WIN32
+// Puntero global para acceder a la barra desde los manejadores de señales
+indicators::ProgressBar* global_bar = nullptr;
+
+// Indicador atómico para saber si se interrumpió el programa
+volatile std::sig_atomic_t g_interrupted = 0;
+
+// Manejador del cambio de tamaño de la terminal
+void handle_resize(int signal) {
+  if (global_bar) {
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    
+    // Ajustar el ancho de la barra dinámicamente para evitar saltos de línea
+    // Dejamos aprox. 65 caracteres para los textos del postfix, porcentaje, corchetes, etc.
+    if (w.ws_col > 75) {
+      global_bar->set_option(indicators::option::BarWidth{static_cast<size_t>(w.ws_col - 65)});
+    } else {
+      global_bar->set_option(indicators::option::BarWidth{10}); // Ancho mínimo de seguridad
+    }
+  }
+}
+
+// Manejador para Ctrl+C o señales de terminación
+void handle_exit(int signal) {
+  g_interrupted = signal;
+}
+#endif
 
 /**
  * @brief Interfaz base para los comandos del grabador de cámara.
@@ -186,6 +220,31 @@ class RecordCommand : public Command {
     // Ocultar el cursor en la terminal para mejorar la visualización de la barra
     show_console_cursor(false);
 
+#ifndef _WIN32
+    global_bar = &bar;
+    g_interrupted = 0;
+
+    // Configurar manejadores con sigaction para tener control sobre SA_RESTART
+    struct sigaction sa_resize;
+    sa_resize.sa_handler = handle_resize;
+    sigemptyset(&sa_resize.sa_mask);
+    sa_resize.sa_flags = SA_RESTART;
+    struct sigaction prev_sigwinch;
+    sigaction(SIGWINCH, &sa_resize, &prev_sigwinch);
+
+    struct sigaction sa_exit;
+    sa_exit.sa_handler = handle_exit;
+    sigemptyset(&sa_exit.sa_mask);
+    sa_exit.sa_flags = 0; // No SA_RESTART para que interrumpa I/O de inmediato
+    struct sigaction prev_sigint;
+    struct sigaction prev_sigterm;
+    sigaction(SIGINT, &sa_exit, &prev_sigint);
+    sigaction(SIGTERM, &sa_exit, &prev_sigterm);
+
+    // Chequeo inicial del tamaño de la terminal
+    handle_resize(0);
+#endif
+
     auto start_time = std::chrono::steady_clock::now();
     auto end_time = start_time + std::chrono::seconds(duration_seconds_);
     long long frames_grabados = 0;
@@ -194,6 +253,12 @@ class RecordCommand : public Command {
 
     // Bucle de grabación basado en tiempo real
     while (true) {
+#ifndef _WIN32
+      if (g_interrupted) {
+        break;
+      }
+#endif
+
       auto current_time = std::chrono::steady_clock::now();
       if (current_time >= end_time) {
         break;
@@ -201,6 +266,15 @@ class RecordCommand : public Command {
 
       // Capturar cuadro de video
       if (!cap.read(frame)) {
+#ifndef _WIN32
+        if (g_interrupted) {
+          break;
+        }
+        if (errno == EINTR) {
+          errno = 0;
+          continue;
+        }
+#endif
         std::cerr << "\nError: Se interrumpió la captura de video." << std::endl;
         break;
       }
@@ -229,12 +303,41 @@ class RecordCommand : public Command {
       bar.set_progress(static_cast<size_t>(progress_pct));
     }
 
+#ifndef _WIN32
+    if (g_interrupted) {
+      if (!bar.is_completed()) {
+        bar.mark_as_completed();
+      }
+      show_console_cursor(true);
+
+      // Restaurar manejadores anteriores
+      sigaction(SIGWINCH, &prev_sigwinch, nullptr);
+      sigaction(SIGINT, &prev_sigint, nullptr);
+      sigaction(SIGTERM, &prev_sigterm, nullptr);
+      global_bar = nullptr;
+
+      cap.release();
+      writer.release();
+
+      std::cout << "\n[!] Program interrupted. Terminal restored.\n";
+      return g_interrupted;
+    }
+#endif
+
     // Asegurar barra al 100%
     std::stringstream ss;
     ss << " | Transcurrido: " << static_cast<double>(duration_seconds_) << ".0s / Restante: 0.0s"
        << " (Total: " << duration_seconds_ << "s)";
     bar.set_option(option::PostfixText{ss.str()});
     bar.set_progress(100);
+
+#ifndef _WIN32
+    // Restaurar manejadores anteriores
+    sigaction(SIGWINCH, &prev_sigwinch, nullptr);
+    sigaction(SIGINT, &prev_sigint, nullptr);
+    sigaction(SIGTERM, &prev_sigterm, nullptr);
+    global_bar = nullptr;
+#endif
 
     // Restaurar cursor en terminal
     show_console_cursor(true);
