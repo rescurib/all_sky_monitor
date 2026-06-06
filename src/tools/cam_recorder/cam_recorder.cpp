@@ -205,8 +205,11 @@ class RecordCommand : public Command {
 
     // Crear y configurar la barra de progreso de indicators
     using namespace indicators;
+    size_t initial_width = terminal_width();
+    size_t bar_width = (initial_width > 75) ? (initial_width - 65) : 10;
+
     ProgressBar bar{
-        option::BarWidth{45},
+        option::BarWidth{bar_width},
         option::Start{"["},
         option::Fill{"█"},
         option::Lead{""},
@@ -299,6 +302,14 @@ class RecordCommand : public Command {
          << " | Transcurrido: " << elapsed_sec << "s / Restante: " << remaining_sec << "s"
          << " (Total: " << duration_seconds_ << "s)";
 
+      // Ajustar el ancho de la barra dinámicamente según el ancho actual de la terminal
+      size_t term_width = terminal_width();
+      if (term_width > 75) {
+        bar.set_option(option::BarWidth{term_width - 65});
+      } else {
+        bar.set_option(option::BarWidth{10}); // Ancho mínimo de seguridad
+      }
+
       bar.set_option(option::PostfixText{ss.str()});
       bar.set_progress(static_cast<size_t>(progress_pct));
     }
@@ -328,6 +339,12 @@ class RecordCommand : public Command {
     std::stringstream ss;
     ss << " | Transcurrido: " << static_cast<double>(duration_seconds_) << ".0s / Restante: 0.0s"
        << " (Total: " << duration_seconds_ << "s)";
+    size_t term_width = terminal_width();
+    if (term_width > 75) {
+      bar.set_option(option::BarWidth{term_width - 65});
+    } else {
+      bar.set_option(option::BarWidth{10});
+    }
     bar.set_option(option::PostfixText{ss.str()});
     bar.set_progress(100);
 
