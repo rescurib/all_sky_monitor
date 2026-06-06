@@ -26,10 +26,28 @@
 #endif
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/utils/logger.hpp>
 #include "argparse.hpp"
 #include "indicators.hpp"
 
 namespace cam_recorder {
+
+// Helper RAII para cambiar temporalmente el nivel de logging de OpenCV.
+// Al salir del ámbito, se restaura el nivel anterior automáticamente.
+class ScopedLogLevel {
+ public:
+  explicit ScopedLogLevel(cv::utils::logging::LogLevel level)
+      : previous_level_(cv::utils::logging::getLogLevel()) {
+    cv::utils::logging::setLogLevel(level);
+  }
+
+  ~ScopedLogLevel() {
+    cv::utils::logging::setLogLevel(previous_level_);
+  }
+
+ private:
+  cv::utils::logging::LogLevel previous_level_;
+};
 
 #ifndef _WIN32
 // Puntero global para acceder a la barra desde los manejadores de señales
@@ -97,6 +115,11 @@ class ListCommand : public Command {
 #else
     int backend = cv::CAP_V4L2;
 #endif
+
+    // Silenciar advertencias de OpenCV durante el escaneo de índices inválidos.
+    // OpenCV intenta abrir índices de cámara no válidos y emite WARN que no
+    // aportan valor al usuario de esta utilidad de listaje.
+    ScopedLogLevel silence(cv::utils::logging::LOG_LEVEL_ERROR);
 
     for (int i = 0; i < 10; ++i) {
       cv::VideoCapture cap;
