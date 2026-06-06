@@ -3,15 +3,7 @@
  * @brief Aplicación de línea de comandos para grabar video desde la cámara web.
  * @details Utiliza OpenCV para la captura y escritura de video, argparse.hpp
  * para la gestión de argumentos, e indicators.hpp para mostrar una barra de
- * progreso de color azul durante la grabación.
- *
- * Requisitos cumplidos:
- * - Principios SOLID aplicados (Patrón Command).
- * - Facilidad para añadir y mantener comandos.
- * - Ayuda para todos los comandos y opciones.
- * - Estilo de código Google C++ y estándar C++17.
- * - Portabilidad entre Windows y Linux.
- * - Comentarios y documentación en español.
+ * progreso la grabación.
  */
 
 #include <iostream>
