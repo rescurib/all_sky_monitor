@@ -1,16 +1,19 @@
-# Makefile for hello_star
+# Makefile for micro_planetarium tools
 
-TARGET = hello_star
-SRC = hello_star.cpp
+TARGETS = hello_star hello_bsc5
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I/usr/local/include -I/usr/include
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I/usr/local/include -I/usr/include -I../../common/inc
 LDFLAGS = -L/usr/local/lib -L/usr/lib -lsupernovas++ -lsupernovas -lcurl -lm -Wl,-rpath,/usr/local/lib
 
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(SRC)
+hello_star: hello_star.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+hello_bsc5: hello_bsc5.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGETS)
+
