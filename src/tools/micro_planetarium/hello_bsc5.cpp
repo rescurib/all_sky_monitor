@@ -11,6 +11,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 #include <cmath>
 #include <json.hpp>
 #include <supernovas.h>
@@ -50,14 +51,19 @@ std::string clean_coord(std::string str) {
 
 // Safely converts JSON string to double, defaulting to 0.0 on error/missing keys
 double get_double_or_zero(const json& star, const std::string& key) {
-    if (star.contains(key) && star[key].is_string()) {
+    if (!star.contains(key)) return 0.0;
+    // If numeric in JSON, return directly
+    if (star[key].is_number()) {
+        try { return star[key].get<double>(); } catch (...) { return 0.0; }
+    }
+    if (star[key].is_string()) {
         std::string val_str = star[key].get<std::string>();
-        if (!val_str.empty()) {
-            try {
-                return std::stod(val_str);
-            } catch (...) {
-                // Return 0.0 if parsing fails
-            }
+        std::string filtered;
+        for (char c : val_str) {
+            if (std::isdigit(static_cast<unsigned char>(c)) || c == '.' || c == '+' || c == '-' || c == 'e' || c == 'E') filtered += c;
+        }
+        if (!filtered.empty()) {
+            try { return std::stod(filtered); } catch (...) { }
         }
     }
     return 0.0;
@@ -68,16 +74,32 @@ bool match_star(const json& star, const std::string& query) {
     if (star.contains("Name") && star["Name"].is_string()) {
         if (contains_ci(star["Name"].get<std::string>(), query)) return true;
     }
-    if (star.contains("HD") && star["HD"].is_string()) {
-        std::string hd = star["HD"].get<std::string>();
+    // Helper to get field as string regardless of JSON type
+    auto get_field_string = [&](const json& j, const std::string& key) -> std::string {
+        if (!j.contains(key)) return std::string();
+        if (j[key].is_string()) return j[key].get<std::string>();
+        if (j[key].is_number()) {
+            try {
+                double v = j[key].get<double>();
+                std::ostringstream oss; oss << std::fixed << v; std::string s = oss.str();
+                s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+                if (!s.empty() && s.back() == '.') s.pop_back();
+                return s;
+            } catch (...) { return std::string(); }
+        }
+        return std::string();
+    };
+
+    std::string hd = get_field_string(star, "HD");
+    if (!hd.empty()) {
         if (contains_ci(hd, query) || contains_ci("HD " + hd, query) || contains_ci("HD" + hd, query)) return true;
     }
-    if (star.contains("HR") && star["HR"].is_string()) {
-        std::string hr = star["HR"].get<std::string>();
+    std::string hr = get_field_string(star, "HR");
+    if (!hr.empty()) {
         if (contains_ci(hr, query) || contains_ci("HR " + hr, query) || contains_ci("HR" + hr, query)) return true;
     }
-    if (star.contains("SAO") && star["SAO"].is_string()) {
-        std::string sao = star["SAO"].get<std::string>();
+    std::string sao = get_field_string(star, "SAO");
+    if (!sao.empty()) {
         if (contains_ci(sao, query) || contains_ci("SAO " + sao, query) || contains_ci("SAO" + sao, query)) return true;
     }
     if (star.contains("Notes") && star["Notes"].is_array()) {
@@ -174,7 +196,7 @@ int main(int argc, char* argv[]) {
     double radvel_si = radvel_km_per_s * Unit::km_per_s;
 
     // 5. Instantiate CatalogEntry
-    auto entry = CatalogEntry(name, Equatorial(clean_coord(ra_str), clean_coord(dec_str), Equinox::j2000()))
+    auto entry = CatalogEntry(name, Equatorial(ra_str, dec_str, Equinox::j2000()))
             .proper_motion(pm_ra_si, pm_dec_si)
             .parallax(Angle(parallax_si))
             .radial_velocity(ScalarVelocity(radvel_si));
