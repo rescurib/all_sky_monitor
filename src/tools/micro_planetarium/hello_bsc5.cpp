@@ -69,7 +69,7 @@ double get_double_or_zero(const json& star, const std::string& key) {
     return 0.0;
 }
 
-// Matches a star entry against a query (Name, HD, HR, SAO, or Notes/Remarks)
+// Matches a star entry against a query (Name, HD, HR, SAO, or Star names notes)
 bool match_star(const json& star, const std::string& query) {
     if (star.contains("Name") && star["Name"].is_string()) {
         if (contains_ci(star["Name"].get<std::string>(), query)) return true;
@@ -102,10 +102,16 @@ bool match_star(const json& star, const std::string& query) {
     if (!sao.empty()) {
         if (contains_ci(sao, query) || contains_ci("SAO " + sao, query) || contains_ci("SAO" + sao, query)) return true;
     }
+
     if (star.contains("Notes") && star["Notes"].is_array()) {
         for (auto& note : star["Notes"]) {
-            if (note.contains("Remark") && note["Remark"].is_string()) {
-                if (contains_ci(note["Remark"].get<std::string>(), query)) return true;
+            if (!note.contains("Category") || !note["Category"].is_string()) continue;
+            if (!note.contains("Remark") || !note["Remark"].is_string()) continue;
+            std::string category = note["Category"].get<std::string>();
+            std::string remark = note["Remark"].get<std::string>();
+            // Only use explicit star-name aliases from the Star names category.
+            if (category == "Star names" && contains_ci(remark, query)) {
+                return true;
             }
         }
     }
