@@ -26,21 +26,29 @@ int main() {
     std::cout << "          Sirius Alt-Az Monitor (Mexico City)           \n";
     std::cout << "========================================================\n\n";
 
-    // 1. Setup EOP and current observation time
-    EOP eop(LEAP_SECONDS, DUT1, POLAR_DX * Unit::mas, POLAR_DY * Unit::mas);
+    /**********************************************/
+    /*  1. Setup EOP and current observation time */
+    /**********************************************/
+
+    EOP eop(LEAP_SECONDS, /* handles the variance between atomic time (TAI) and UTC*/
+            DUT1, /* the difference between Universal Time (UT1) and Coordinated Universal Time (UTC) */
+            POLAR_DX * Unit::mas,  /* IERS xp mean (interpolated) pole offset in the ITRS X direction */
+            POLAR_DY * Unit::mas); /* IERS yp mean (interpolated) pole offset in the ITRS y direction */
+
     Time t = Time::now(eop);
 
     // Print current time
     std::cout << "Observation Time (UTC): " << t.to_string() << "\n";
 
-    // 2. Define Sirius (Alpha Canis Majoris) catalog entry
-    // Astrometric data for J2000 epoch:
+    /**********************************************/
+    /*  2. Define Sirius (Alp CMa) catalog entry  */
+    /**********************************************/
+
+    // Astrometric data for J2000 epoch
     // RA: 06h 45m 08.9173s, Dec: -16d 42m 58.017s
-    // Proper motion: RA -546.05 mas/yr, Dec -1223.14 mas/yr
-    // Parallax: 379.21 mas
-    // Radial Velocity: -7.6 km/s
     auto entry = CatalogEntry("Sirius", Equatorial("06h 45m 08.9173s", "-16d 42m 58.017s", Equinox::j2000()))
-            .proper_motion(-546.05 * Unit::mas / Unit::yr, -1223.14 * Unit::mas / Unit::yr)
+            .proper_motion(-546.05  * Unit::mas / Unit::yr, /*RA*/
+                           -1223.14 * Unit::mas / Unit::yr) /*Dec*/
             .parallax(379.21 * Unit::mas)
             .radial_velocity(-7.6 * Unit::km_per_s);
 
@@ -49,45 +57,52 @@ int main() {
         return 1;
     }
 
+    /*A CatalogSource is an optimized object prepared to 
+      interact directly with the astrometric calculation core.*/
     auto source = entry.to_source();
 
-    // 3. Define observer location for Mexico City
+    /***********************************************/
+    /* 3. Define observer location for Mexico City */
+    /***********************************************/
+
     // Latitude: 19.4326 N, Longitude: 99.1332 W (represented as -99.1332 E)
     // Elevation: 2240 m
-    auto obs = Observer::on_earth(Site::from_GPS(-99.1332 * Unit::deg, 19.4326 * Unit::deg, 2240.0 * Unit::m), eop);
+    auto obs = Observer::on_earth(Site::from_GPS(-99.1332 * Unit::deg,
+                                                  19.4326 * Unit::deg, 
+                                                  2240.0 * Unit::m), 
+                                                  eop);
+                                                  
+    /**********************************************/
+    /*  4. Initialize observing frame             */
+    /**********************************************/
 
-    if (!obs) {
-        std::cerr << "Error: Invalid observer site initialized.\n";
-        return 1;
-    }
+    /*frame_at() calculates the Earth's orientation matrices—accounting for precession, 
+      nutation, spin, and polar motion—at that exact instant from the observer's perspective.*/
+    auto frame = obs.frame_at(t, NOVAS_REDUCED_ACCURACY); // (milliarcsecond level, offline)
 
-    // 4. Initialize observing frame (Reduced accuracy / milliarcsecond level, offline)
-    auto frame = obs.frame_at(t, NOVAS_REDUCED_ACCURACY);
+    /*******************************************/
+    /*  5. Calculate apparent position         */
+    /*******************************************/
 
-    if (!frame) {
-        std::cerr << "Error: Could not initialize observing frame.\n";
-        return 1;
-    }
-
-    // 5. Calculate apparent position
     Apparent apparent = source.apparent_in(frame);
     if (!apparent) {
         std::cerr << "Error: Could not calculate apparent coordinates.\n";
         return 1;
     }
 
-    // 6. Calculate refracted Alt-Az coordinates
+    /**********************************************/
+    /*  6. Calculate refracted Alt-Az coordinates */
+    /**********************************************/
+
     // Using standard weather conditions for Mexico City:
     // Temperature: 15 C, Pressure: 780 mbar (typical for ~2240m altitude), Humidity: 50%
     Weather weather(Temperature::celsius(15.0), Pressure::mbar(780.0), 50.0 * Unit::percent);
     Horizontal hor = apparent.to_horizontal().to_refracted(novas_optical_refraction, weather);
 
-    if (!hor) {
-        std::cerr << "Error: Failed to calculate horizontal coordinates.\n";
-        return 1;
-    }
+    /**********************************************/
+    /*  7. Print the results nicely               */
+    /**********************************************/
 
-    // 7. Print the results nicely
     std::cout << "Star Name: " << source.name() << "\n";
     std::cout << "Apparent place: " << apparent.equatorial().to_string() << "\n";
     std::cout << "--------------------------------------------------------\n";

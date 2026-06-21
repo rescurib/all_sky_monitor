@@ -189,13 +189,13 @@ double parse_dec_degrees(const std::string& dec_text) {
 
 // Print the most important catalog values for one star.
 void print_star_summary(const json& star) {
-    std::string name = get_string(star, "Name");
-    std::string hd = get_string(star, "HD");
-    std::string hr = get_string(star, "HR");
-    std::string ra = get_string(star, "RA");
-    std::string dec = get_string(star, "Dec");
+    std::string name     = get_string(star, "Name");
+    std::string hd       = get_string(star, "HD");
+    std::string hr       = get_string(star, "HR");
+    std::string ra       = get_string(star, "RA");
+    std::string dec      = get_string(star, "Dec");
     std::string spectral = get_string(star, "SpectralCls");
-    std::string vmag = get_string(star, "Vmag");
+    std::string vmag     = get_string(star, "Vmag");
 
     std::cout << "  Name: " << (name.empty() ? "<none>" : name) << "\n";
     std::cout << "  HD: " << (hd.empty() ? "<none>" : hd)

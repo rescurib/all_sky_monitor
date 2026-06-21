@@ -188,18 +188,18 @@ int main(int argc, char* argv[]) {
     }
 
     // Proper motion conversion (arcsec/yr -> rad/s)
-    double pm_ra_arcsec = get_double_or_zero(matched_star, "pmRA");
+    double pm_ra_arcsec  = get_double_or_zero(matched_star, "pmRA");
     double pm_dec_arcsec = get_double_or_zero(matched_star, "pmDE");
-    double pm_ra_si = pm_ra_arcsec * Unit::arcsec / Unit::yr;
-    double pm_dec_si = pm_dec_arcsec * Unit::arcsec / Unit::yr;
+    double pm_ra_si      = pm_ra_arcsec * Unit::arcsec / Unit::yr;
+    double pm_dec_si     = pm_dec_arcsec * Unit::arcsec / Unit::yr;
 
     // Parallax conversion (arcsec -> rad)
     double parallax_arcsec = get_double_or_zero(matched_star, "Parallax");
-    double parallax_si = parallax_arcsec * Unit::arcsec;
+    double parallax_si     = parallax_arcsec * Unit::arcsec;
 
     // Radial velocity conversion (km/s -> m/s)
     double radvel_km_per_s = get_double_or_zero(matched_star, "RadVel");
-    double radvel_si = radvel_km_per_s * Unit::km_per_s;
+    double radvel_si       = radvel_km_per_s * Unit::km_per_s;
 
     // 5. Instantiate CatalogEntry
     auto entry = CatalogEntry(name, Equatorial(ra_str, dec_str, Equinox::j2000()))
@@ -211,40 +211,36 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error: Invalid catalog entry created for star: " << name << ".\n";
         return 1;
     }
-
+    
+    /*A CatalogSource is an optimized object prepared to interact directly with the astrometric calculation core.*/
     auto source = entry.to_source();
 
     // 6. Setup time & observer
-    EOP eop(LEAP_SECONDS, DUT1, POLAR_DX * Unit::mas, POLAR_DY * Unit::mas);
+    EOP eop(LEAP_SECONDS, /* handles the variance between atomic time (TAI) and UTC*/
+            DUT1, /* the difference between Universal Time (UT1) and Coordinated Universal Time (UTC) */
+            POLAR_DX * Unit::mas,  /* IERS xp mean (interpolated) pole offset in the ITRS X direction */
+            POLAR_DY * Unit::mas); /* IERS yp mean (interpolated) pole offset in the ITRS y direction */
+   
     Time t = Time::now(eop);
-    auto obs = Observer::on_earth(Site::from_GPS(-99.1332 * Unit::deg, 19.4326 * Unit::deg, 2240.0 * Unit::m), eop);
-
-    if (!obs) {
-        std::cerr << "Error: Invalid observer site initialized.\n";
-        return 1;
-    }
+    
+    auto obs = Observer::on_earth(Site::from_GPS(-99.1332 * Unit::deg,
+                                                  19.4326 * Unit::deg,
+                                                  2240.0  * Unit::m),
+                                                  eop);
 
     // 7. Initialize reduced accuracy frame and apparent location
+
+    /*frame_at() calculates the Earth's orientation matrices—accounting for precession, 
+      nutation, spin, and polar motion—at that exact instant from the observer's perspective.*/
     auto frame = obs.frame_at(t, NOVAS_REDUCED_ACCURACY);
-    if (!frame) {
-        std::cerr << "Error: Could not initialize observing frame.\n";
-        return 1;
-    }
 
+    /*Takes the spatial coordinates of your celestial target (source) and runs them through 
+      the orientation matrix space generated in frame.*/
     Apparent apparent = source.apparent_in(frame);
-    if (!apparent) {
-        std::cerr << "Error: Could not calculate apparent coordinates.\n";
-        return 1;
-    }
-
+  
     // 8. Calculate refracted Alt-Az coordinates
-    Weather weather(Temperature::celsius(15.0), Pressure::mbar(780.0), 50.0 * Unit::percent);
+    Weather    weather(Temperature::celsius(15.0), Pressure::mbar(780.0), 50.0 * Unit::percent);
     Horizontal hor = apparent.to_horizontal().to_refracted(novas_optical_refraction, weather);
-
-    if (!hor) {
-        std::cerr << "Error: Failed to calculate horizontal coordinates.\n";
-        return 1;
-    }
 
     // 9. Print results
     std::cout << "Observation Time (UTC): " << t.to_string() << "\n";
@@ -262,6 +258,15 @@ int main(int argc, char* argv[]) {
     std::cout << "  DMS Format:     " << hor.elevation().to_string() << "\n";
     std::cout << "  Decimal Deg:    " << hor.elevation().deg() << "°\n";
     std::cout << "========================================================\n";
+
+    /* NOTE about star naming conventions. For Sirius, the BSC5 catalog lists:
+     * Name: "9Alp CMa"
+     * 9 (Flamsteed Designation): This is the leading number. It tells you that Sirius is the 9th star in 
+     * the constellation Canis Major when moving from west to east (ordered by increasing Right Ascension).
+     * Alp (Bayer Designation): Short for Alpha ($\alpha$). This indicates that Sirius is typically the brightest 
+     * star in that constellation.
+     * CMa (Constellation): The standard IAU 3-letter abbreviation for Canis Major (The Greater Dog).
+    */
 
     return 0;
 }
