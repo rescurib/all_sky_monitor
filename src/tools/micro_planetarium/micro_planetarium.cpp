@@ -164,7 +164,7 @@ void recalculate_positions(const EOP& eop, int city_idx, int mag_idx,
         
         // Header row for constellation
         StyledText c_header;
-        c_header.colored_bold("✦ " + display_name, Color::Cyan());
+        c_header.colored_bold("* " + display_name, Color::Cyan());
         new_rows.push_back({c_header, "", "", ""});
         
         // Sort stars in constellation by brightness (mag ascending)
@@ -238,7 +238,7 @@ int main() {
     auto sidebar = std::make_shared<Vertical>();
     sidebar->fixed_width = 25;
     
-    auto title_lbl = std::make_shared<Label>(StyledText().bold("★ SKY MONITOR ★"));
+    auto title_lbl = std::make_shared<Label>(StyledText().bold("- SKY MONITOR -"));
     title_lbl->fixed_height = 1;
     sidebar->add(title_lbl);
     sidebar->add(std::make_shared<VerticalSpacer>(1));
