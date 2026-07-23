@@ -49,13 +49,16 @@ struct star_t {
     /// @brief Radial velocity (m/s), positive for receding objects
     double radvel_si;
     
+    /// @brief Visual magnitude (Vmag)
+    double magnitude;
+    
     /**
      * @brief Default constructor initializing all fields to zero/empty
      */
     star_t() 
         : name(""), ra_str(""), dec_str(""),
           pm_ra_si(0.0), pm_dec_si(0.0),
-          parallax_si(0.0), radvel_si(0.0) {}
+          parallax_si(0.0), radvel_si(0.0), magnitude(0.0) {}
     
     /**
      * @brief Construct a star_t with all parameters
@@ -66,12 +69,13 @@ struct star_t {
      * @param pm_dec Proper motion Dec (rad/s)
      * @param parallax Parallax (rad)
      * @param radvel Radial velocity (m/s)
+     * @param mag Visual magnitude
      */
     star_t(const std::string& n, const std::string& ra, const std::string& dec,
-            double pm_ra, double pm_dec, double parallax, double radvel)
+            double pm_ra, double pm_dec, double parallax, double radvel, double mag = 0.0)
         : name(n), ra_str(ra), dec_str(dec),
           pm_ra_si(pm_ra), pm_dec_si(pm_dec),
-          parallax_si(parallax), radvel_si(radvel) {}
+          parallax_si(parallax), radvel_si(radvel), magnitude(mag) {}
 };
 
 #endif // STAR_T_HPP
