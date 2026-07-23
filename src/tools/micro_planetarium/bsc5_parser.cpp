@@ -239,7 +239,9 @@ star_t BSC5_Parser::getAstrometrics(const std::string& starName) {
         double radvel_km_per_s = get_double_or_zero(star, "RadVel");
         double radvel_si = radvel_km_per_s * 1000.0;  // km/s to m/s
         
-        return star_t(name, ra_str, dec_str, pm_ra_si, pm_dec_si, parallax_si, radvel_si);
+        double magnitude = get_double_or_zero(star, "Vmag");
+        
+        return star_t(name, ra_str, dec_str, pm_ra_si, pm_dec_si, parallax_si, radvel_si, magnitude);
     }
     
     throw std::runtime_error("Star matching \"" + starName + "\" not found in catalog.");
@@ -262,7 +264,14 @@ std::vector<star_t> BSC5_Parser::query(const std::string& query) {
             // Extract name
             std::string name = star.contains("Name") && star["Name"].is_string() 
                               ? star["Name"].get<std::string>() 
-                              : query;
+                              : "";
+            if (name.empty()) {
+                std::string hd = get_field_string(star, "HD");
+                std::string hr = get_field_string(star, "HR");
+                if (!hd.empty()) name = "HD " + hd;
+                else if (!hr.empty()) name = "HR " + hr;
+                else name = "Unknown";
+            }
             
             // Extract coordinates
             std::string ra_str = star.contains("RA") && star["RA"].is_string() 
@@ -290,8 +299,10 @@ std::vector<star_t> BSC5_Parser::query(const std::string& query) {
             double radvel_km_per_s = get_double_or_zero(star, "RadVel");
             double radvel_si = radvel_km_per_s * 1000.0;
             
+            double magnitude = get_double_or_zero(star, "Vmag");
+            
             results.push_back(star_t(name, ra_str, dec_str, pm_ra_si, pm_dec_si, 
-                                     parallax_si, radvel_si));
+                                     parallax_si, radvel_si, magnitude));
         } catch (...) {
             // Skip stars with incomplete data
             continue;

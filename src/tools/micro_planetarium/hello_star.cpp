@@ -108,10 +108,10 @@ int main() {
     std::cout << "--------------------------------------------------------\n";
     std::cout << std::fixed << std::setprecision(5);
     std::cout << "Azimuth (East of North):\n";
-    std::cout << "  DMS Format:     " << hor.azimuth().to_string() << "\n";
+    std::cout << "  DMS Format:    " << hor.azimuth().to_string() << "\n";
     std::cout << "  Decimal Deg:    " << hor.azimuth().deg() << "°\n\n";
     std::cout << "Elevation:\n";
-    std::cout << "  DMS Format:     " << hor.elevation().to_string() << "\n";
+    std::cout << "  DMS Format:   " << hor.elevation().to_string() << "\n";
     std::cout << "  Decimal Deg:    " << hor.elevation().deg() << "°\n";
     std::cout << "========================================================\n";
 
