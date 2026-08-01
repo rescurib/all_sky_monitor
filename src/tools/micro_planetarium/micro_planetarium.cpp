@@ -234,7 +234,9 @@ int main() {
     
     EOP eop(LEAP_SECONDS, DUT1, POLAR_DX * Unit::mas, POLAR_DY * Unit::mas);
     
-    // Sidebar layouts
+    /****************************************************/
+    /*             Left sidebar layouts                 */
+    /****************************************************/
     auto sidebar = std::make_shared<Vertical>();
     sidebar->fixed_width = 25;
     
@@ -279,7 +281,9 @@ int main() {
     info_border->add(info_layout);
     sidebar->add(info_border);
     
-    // Main star list layout
+    /****************************************************/
+    /*          Right main start list layout            */
+    /****************************************************/
     auto main_border = std::make_shared<Border>(BorderStyle::Double);
     main_border->set_title("Visible Stars", Alignment::Center);
     
